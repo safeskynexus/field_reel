@@ -44,6 +44,10 @@ nav a:hover{border-color:var(--o)}
 .hero h1 em{display:block;font-style:normal;transform:translateY(110%);transition:transform 1s cubic-bezier(.2,.8,.2,1)}
 .hero h1 span:nth-child(2) em{transition-delay:.15s;color:transparent;-webkit-text-stroke:2px var(--o)}
 .go .hero h1 em{transform:none}
+@media(max-aspect-ratio:1/1){
+  .hero video{inset:auto;left:0;right:0;top:calc(64px + env(safe-area-inset-top));width:100%;height:auto;max-height:44vh;object-fit:contain;opacity:.9;-webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent)}
+  .hero::before{background:linear-gradient(transparent 55%,var(--bg))}
+}
 .hero p{margin-top:22px;color:var(--dim);font-size:clamp(14px,2vw,19px);max-width:34ch}
 .tag{position:absolute;right:var(--pad);bottom:clamp(36px,8vh,80px);font-size:12px;color:var(--dim);display:flex;align-items:center;gap:10px}
 .tag::before{content:"";width:1px;height:46px;background:linear-gradient(var(--o),transparent);animation:dr 1.8s ease-in-out infinite}
@@ -110,11 +114,6 @@ nav a:hover{border-color:var(--o)}
 #lb.on{display:grid}
 #lbb>*{max-width:92vw;max-height:84vh;border-radius:12px}
 #x{position:absolute;top:calc(14px + env(safe-area-inset-top));right:16px;width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:18px;cursor:pointer}
-
-/* drone colour picker */
-#dock{position:fixed;left:var(--pad);bottom:calc(14px + env(safe-area-inset-bottom));z-index:45;display:flex;gap:8px;align-items:center;padding:7px 10px;border-radius:99px;background:rgba(4,7,15,.6);backdrop-filter:blur(10px);border:1px solid var(--line);font-size:12px;color:var(--dim)}
-#dock button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;outline:1px solid var(--line)}
-#dock button.on{border-color:var(--text)}
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}html{scroll-behavior:auto}.hero h1 em{transform:none}}
 </style>
@@ -208,7 +207,6 @@ nav a:hover{border-color:var(--o)}
 </section>
 
 <div id="lb"><button id="x" aria-label="Close">&#10005;</button><div id="lbb"></div></div>
-<div id="dock" role="group" aria-label="Drone colour"><span>Drone</span></div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
@@ -264,34 +262,20 @@ nav a:hover{border-color:var(--o)}
   sc.environment=pm.fromScene(envS).texture;
   var k=new THREE.DirectionalLight(0xffffff,.8);k.position.set(4,7,6);sc.add(k);
 
-  /* colourways: [main body, dark parts, accent] */
-  var ways={
-    arctic:['Arctic',[0xe9edf5,0x1c2029,0xE77713]],
-    stealth:['Stealth',[0x2b313f,0x0b0d12,0x22d3ee]],
-    ember:['Ember',[0xE77713,0x14171f,0xf2f4fa]],
-    crimson:['Crimson',[0xc81e2d,0x111318,0xe5e7ee]]
-  };
-  var mBody=new THREE.MeshStandardMaterial({metalness:.55,roughness:.3}),
-      mDark=new THREE.MeshStandardMaterial({metalness:.7,roughness:.4}),
-      mAcc=new THREE.MeshStandardMaterial({metalness:.8,roughness:.25}),
-      drone=new THREE.Group(),body=new THREE.Group(),props=[],model=null,cur='arctic',hsl={h:0,s:0,l:0};
+  /* one colourway: blue body, carbon parts, cyan accents */
+  var mBody=new THREE.MeshStandardMaterial({color:0x1f5fff,metalness:.55,roughness:.3}),
+      mDark=new THREE.MeshStandardMaterial({color:0x0b0d12,metalness:.7,roughness:.4}),
+      mAcc=new THREE.MeshStandardMaterial({color:0x22d3ee,metalness:.8,roughness:.25}),
+      drone=new THREE.Group(),body=new THREE.Group(),props=[],model=null,hsl={h:0,s:0,l:0};
   drone.add(body);
 
-  function paint(key){
-    cur=key;var w=ways[key];
-    if(w){mBody.color.setHex(w[1][0]);mDark.color.setHex(w[1][1]);mAcc.color.setHex(w[1][2])}
-    if(model)model.traverse(function(m){
+  function paint(){
+    if(!model)return;
+    model.traverse(function(m){
       if(!m.isMesh)return;
-      if(!m.userData.o){m.userData.o=m.material;
-        (m.material.color||new THREE.Color()).getHSL(hsl);
+      if(!m.userData.t){(m.material.color||new THREE.Color()).getHSL(hsl);
         m.userData.t=hsl.l<.14?mDark:(hsl.s>.4?mAcc:mBody)}
-      m.material=w?m.userData.t:m.userData.o});
-    [].forEach.call(dock.querySelectorAll('button'),function(b){b.classList.toggle('on',b.dataset.k===key)})}
-
-  var dock=document.getElementById('dock');
-  function swatch(key,name,bg){var b=document.createElement('button');b.dataset.k=key;b.title=name;b.setAttribute('aria-label',name+' drone');b.style.background=bg;b.onclick=function(){paint(key)};dock.appendChild(b)}
-  Object.keys(ways).forEach(function(key){var c=ways[key][1];function h(n){return '#'+('000000'+n.toString(16)).slice(-6)}
-    swatch(key,ways[key][0],'linear-gradient(135deg,'+h(c[0])+' 50%,'+h(c[2])+' 50%)')});
+      m.material=m.userData.t})}
 
   /* simple built-in drone, used until (or if) drone.glb loads */
   function box(w,h,d,m,x,y,z){var o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);body.add(o);return o}
@@ -300,7 +284,7 @@ nav a:hover{border-color:var(--o)}
     box(2.5,.09,.2,mBody,s[0]*1.2,.02,s[1]*1.2).rotation.y=-Math.atan2(s[1],s[0]);
     var x=s[0]*2.15,z=s[1]*2.15,mo=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.4,20),mAcc);mo.position.set(x,.25,z);body.add(mo);
     var pr=new THREE.Group();pr.position.set(x,.55,z);pr.add(new THREE.Mesh(new THREE.BoxGeometry(2.2,.02,.16),mDark));body.add(pr);props.push(pr)});
-  model=body;paint('arctic');
+  model=body;paint();
   sc.add(drone);
 
   if(THREE.GLTFLoader){new THREE.GLTFLoader().load('images/drone.glb',function(gl){
@@ -308,7 +292,7 @@ nav a:hover{border-color:var(--o)}
     var m=gl.scene,b=new THREE.Box3().setFromObject(m),s=new THREE.Vector3();b.getSize(s);
     var f=5/Math.max(s.x,s.y,s.z);m.scale.setScalar(f);
     b.setFromObject(m);var c=new THREE.Vector3();b.getCenter(c);m.position.sub(c);body.add(m);
-    model=m;paint(cur);swatch('orig','Original colours','conic-gradient(#e33,#3b3,#33e,#e33)');paint(cur)},undefined,function(){})}
+    model=m;paint()},undefined,function(){})}
 
   var W,H,px=0,py=0,lastMove=0,cx=0,cy=0,vx=0,vy=0,sy=0,ry=0,touch=matchMedia('(pointer:coarse)').matches;
   function size(){W=innerWidth;H=innerHeight;r.setSize(W,H,false);cam.aspect=W/H;cam.updateProjectionMatrix()}
@@ -324,7 +308,7 @@ nav a:hover{border-color:var(--o)}
     var vh=2*Math.tan(cam.fov*Math.PI/360)*cam.position.z,vw=vh*cam.aspect,wide=W>=800;
     var hero=Math.max(0,1-sy/(H*.75)),idle=performance.now()-lastMove>2500||(touch&&performance.now()-lastMove>1200);
     var tx=idle?Math.sin(t*.5)*.3:px, ty=idle?Math.sin(t*.7)*.25:py;
-    var homeX=wide?vw*.2:0, homeY=wide?0:vh*.16;
+    var homeX=wide?vw*.2:0, homeY=wide?0:-vh*.04;
     var x=homeX*hero+(tx*vw*.9)*(1-hero*.7), y=homeY*hero-(ty*vh*.9)*(1-hero*.7);
     var nx=cx+(x-cx)*Math.min(1,dt*3.2), ny=cy+(y-cy)*Math.min(1,dt*3.2);
     vx+=((nx-cx)/Math.max(dt,.001)-vx)*.15;vy+=((ny-cy)/Math.max(dt,.001)-vy)*.15;cx=nx;cy=ny;
